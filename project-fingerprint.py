@@ -1,7 +1,6 @@
 import time
 from pyfingerprint.pyfingerprint import PyFingerprint
 import RPi.GPIO as gpio
-from RPLCD import CharLCD
 
 RS =18
 EN =23
@@ -10,7 +9,7 @@ D5 =25
 D6 =8
 D7 =7
 
-enrol=12
+enrol=5
 delet=6
 inc=13
 dec=19
@@ -18,7 +17,6 @@ led=26
 
 HIGH=1
 LOW=0
-
 
 gpio.setwarnings(False)
 gpio.setmode(gpio.BCM)
@@ -28,10 +26,6 @@ gpio.setup(D4, gpio.OUT)
 gpio.setup(D5, gpio.OUT)
 gpio.setup(D6, gpio.OUT)
 gpio.setup(D7, gpio.OUT)
-
-pins_data=[D4,D5,D6,D7]
-lcd=CharLCD(cols=16, rows=2, pin_rs=37, pin_e=35,pins_data=[33,31,29,23])
-lcd.write_string("hiiii")
 
 gpio.setup(enrol, gpio.IN, pull_up_down=gpio.PUD_UP)
 gpio.setup(delet, gpio.IN, pull_up_down=gpio.PUD_UP)
@@ -93,7 +87,6 @@ def lcdcmd(ch):
   gpio.output(EN, 0)
   
 def lcdwrite(ch): 
-  print(ch)
   gpio.output(RS, 1)
   gpio.output(D4, 0)
   gpio.output(D5, 0)
@@ -221,6 +214,9 @@ def searchFinger():
         print('Operation failed!')
         print('Exception message: ' + str(e))
         exit(1)
+
+
+
     
 def deleteFinger():
     positionNumber = 0
@@ -231,15 +227,15 @@ def deleteFinger():
     lcdprint("Position: ")
     lcdcmd(0xca)
     lcdprint(str(count))
-    while gpio.input(enrol) == True:   # here enrol key means ok
-        if gpio.input(inc) == False:
+    while gpio.input(enrol) == False:   # here enrol key means ok
+        if gpio.input(inc) == True:
             count=count+1
             if count>1000:
                 count=1000
             lcdcmd(0xca)
             lcdprint(str(count))
             time.sleep(0.2)
-        elif gpio.input(dec) == False:
+        elif gpio.input(dec) == True:
             count=count-1
             if count<0:
                 count=0
@@ -260,9 +256,29 @@ lcdcmd(0xc0)
 lcdprint("Interfacing ")
 time.sleep(3)
 lcdcmd(0x01)
-lcdprint("Circuit Digest")
+lcdprint("Project by")
 lcdcmd(0xc0)
-lcdprint("Welcomes You  ")
+lcdprint("AA && MM")
 time.sleep(3)
 flag=0
 lcdclear()
+
+
+
+while 1:
+    gpio.output(led, HIGH)
+    print gpio.input(5)
+    lcdcmd(1)
+    lcdprint("Place Finger")
+    if gpio.input(enrol) == 1:
+    	print("salll")
+        gpio.output(led, LOW)
+        enrollFinger()
+    elif gpio.input(delet) == 1:
+    	print("fdsfdsfdsfds")
+        gpio.output(led, LOW)
+        while gpio.input(delet) == 1:
+            time.sleep(0.1)
+        deleteFinger()
+    else:
+        searchFinger()
