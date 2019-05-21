@@ -1,6 +1,12 @@
 import time
 from pyfingerprint.pyfingerprint import PyFingerprint
 import RPi.GPIO as gpio
+from firebase import firebase
+
+# the generated root for your project
+FIREBASE_ROOT = 'https://ms-project-ad8c6.firebaseio.com/'
+# init Firebase Database instance
+firebase = firebase.FirebaseApplication(FIREBASE_ROOT, None)
 
 RS =18
 EN =23
@@ -18,6 +24,8 @@ led=26
 HIGH=1
 LOW=0
 
+flagAdminRights=0
+
 gpio.setwarnings(False)
 gpio.setmode(gpio.BCM)
 gpio.setup(RS, gpio.OUT)
@@ -34,14 +42,14 @@ gpio.setup(dec, gpio.IN, pull_up_down=gpio.PUD_UP)
 gpio.setup(led, gpio.OUT)
 
 try:
-    f = PyFingerprint('/dev/ttyUSB0', 57600, 0xFFFFFFFF, 0x00000000)
+	f = PyFingerprint('/dev/ttyUSB0', 57600, 0xFFFFFFFF, 0x00000000)
 
-    if ( f.verifyPassword() == False ):
-        raise ValueError('The given fingerprint sensor password is wrong!')
+	if ( f.verifyPassword() == False ):
+		raise ValueError('The given fingerprint sensor password is wrong!')
 
 except Exception as e:
-    print('Exception message: ' + str(e))
-    exit(1)
+	print('Exception message: ' + str(e))
+	exit(1)
 
 def begin():
   lcdcmd(0x33) 
@@ -59,13 +67,13 @@ def lcdcmd(ch):
   gpio.output(D6, 0)
   gpio.output(D7, 0)
   if ch&0x10==0x10:
-    gpio.output(D4, 1)
+	gpio.output(D4, 1)
   if ch&0x20==0x20:
-    gpio.output(D5, 1)
+	gpio.output(D5, 1)
   if ch&0x40==0x40:
-    gpio.output(D6, 1)
+	gpio.output(D6, 1)
   if ch&0x80==0x80:
-    gpio.output(D7, 1)
+	gpio.output(D7, 1)
   gpio.output(EN, 1)
   time.sleep(0.005)
   gpio.output(EN, 0)
@@ -75,13 +83,13 @@ def lcdcmd(ch):
   gpio.output(D6, 0)
   gpio.output(D7, 0)
   if ch&0x01==0x01:
-    gpio.output(D4, 1)
+	gpio.output(D4, 1)
   if ch&0x02==0x02:
-    gpio.output(D5, 1)
+	gpio.output(D5, 1)
   if ch&0x04==0x04:
-    gpio.output(D6, 1)
+	gpio.output(D6, 1)
   if ch&0x08==0x08:
-    gpio.output(D7, 1)
+	gpio.output(D7, 1)
   gpio.output(EN, 1)
   time.sleep(0.005)
   gpio.output(EN, 0)
@@ -93,13 +101,13 @@ def lcdwrite(ch):
   gpio.output(D6, 0)
   gpio.output(D7, 0)
   if ch&0x10==0x10:
-    gpio.output(D4, 1)
+	gpio.output(D4, 1)
   if ch&0x20==0x20:
-    gpio.output(D5, 1)
+	gpio.output(D5, 1)
   if ch&0x40==0x40:
-    gpio.output(D6, 1)
+	gpio.output(D6, 1)
   if ch&0x80==0x80:
-    gpio.output(D7, 1)
+	gpio.output(D7, 1)
   gpio.output(EN, 1)
   time.sleep(0.005)
   gpio.output(EN, 0)
@@ -109,13 +117,13 @@ def lcdwrite(ch):
   gpio.output(D6, 0)
   gpio.output(D7, 0)
   if ch&0x01==0x01:
-    gpio.output(D4, 1)
+	gpio.output(D4, 1)
   if ch&0x02==0x02:
-    gpio.output(D5, 1)
+	gpio.output(D5, 1)
   if ch&0x04==0x04:
-    gpio.output(D6, 1)
+	gpio.output(D6, 1)
   if ch&0x08==0x08:
-    gpio.output(D7, 1)
+	gpio.output(D7, 1)
   gpio.output(EN, 1)
   time.sleep(0.005)
   gpio.output(EN, 0)
@@ -126,128 +134,155 @@ def lcdprint(Str):
   l=0;
   l=len(Str)
   for i in range(l):
-    lcdwrite(ord(Str[i]))
-    
+	lcdwrite(ord(Str[i]))
+	
 def setCursor(x,y):
-    if y == 0:
-        n=128+x
-    elif y == 1:
-        n=192+x
-    lcdcmd(n)
+	if y == 0:
+		n=128+x
+	elif y == 1:
+		n=192+x
+	lcdcmd(n)
 
 def enrollFinger():
-    lcdcmd(1)
-    lcdprint("Enrolling Finger")
-    time.sleep(2)
-    print('Waiting for finger...')
-    lcdcmd(1)
-    lcdprint("Place Finger")
-    while ( f.readImage() == False ):
-        pass
-    f.convertImage(0x01)
-    result = f.searchTemplate()
-    positionNumber = result[0]
-    if ( positionNumber >= 0 ):
-        print('Template already exists at position #' + str(positionNumber))
-        lcdcmd(1)
-        lcdprint("Finger ALready")
-        lcdcmd(192)
-        lcdprint("   Exists     ")
-        time.sleep(2)
-        return
-    print('Remove finger...')
-    lcdcmd(1)
-    lcdprint("Remove Finger")
-    time.sleep(2)
-    print('Waiting for same finger again...')
-    lcdcmd(1)
-    lcdprint("Place Finger")
-    lcdcmd(192)
-    lcdprint("   Again    ")
-    while ( f.readImage() == False ):
-        pass
-    f.convertImage(0x02)
-    if ( f.compareCharacteristics() == 0 ):
-        print "Fingers do not match"
-        lcdcmd(1)
-        lcdprint("Finger Did not")
-        lcdcmd(192)
-        lcdprint("   Mactched   ")
-        time.sleep(2)
-        return
-    f.createTemplate()
-    positionNumber = f.storeTemplate()
-    print('Finger enrolled successfully!')
-    lcdcmd(1)
-    lcdprint("Stored at Pos:")
-    lcdprint(str(positionNumber))
-    lcdcmd(192)
-    lcdprint("successfully")
-    print('New template position #' + str(positionNumber))
-    time.sleep(2)
+	lcdcmd(1)
+	lcdprint("Enrolling Finger")
+	time.sleep(2)
+	print('Waiting for finger...')
+	lcdcmd(1)
+	lcdprint("Place Finger")
+	while ( f.readImage() == False ):
+		pass
+	f.convertImage(0x01)
+	result = f.searchTemplate()
+	positionNumber = result[0]
+	if ( positionNumber >= 0 ):
+		print('Template already exists at position #' + str(positionNumber))
+		lcdcmd(1)
+		lcdprint("Finger ALready")
+		lcdcmd(192)
+		lcdprint("   Exists     ")
+		time.sleep(2)
+		return
+	print('Remove finger...')
+	lcdcmd(1)
+	lcdprint("Remove Finger")
+	time.sleep(2)
+	print('Waiting for same finger again...')
+	lcdcmd(1)
+	lcdprint("Place Finger")
+	lcdcmd(192)
+	lcdprint("   Again    ")
+	while ( f.readImage() == False ):
+		pass
+	f.convertImage(0x02)
+	if ( f.compareCharacteristics() == 0 ):
+		print "Fingers do not match"
+		lcdcmd(1)
+		lcdprint("Finger Did not")
+		lcdcmd(192)
+		lcdprint("   Mactched   ")
+		time.sleep(2)
+		return
+	f.createTemplate()
+	positionNumber = f.storeTemplate()
+	value = {positionNumber : False}
+	result = firebase.patch('/fingerprint', value)
+	print result
+	print('Finger enrolled successfully!')
+	lcdcmd(1)
+	lcdprint("Stored at Pos:")
+	lcdprint(str(positionNumber))
+	lcdcmd(192)
+	lcdprint("successfully")
+	print('New template position #' + str(positionNumber))
+	time.sleep(2)
 
-def searchFinger():
-    try:
-        print('Waiting for finger...')
-        while( f.readImage() == False ):
-            #pass
-            time.sleep(.5)
-            return
-        f.convertImage(0x01)
-        result = f.searchTemplate()
-        positionNumber = result[0]
-        accuracyScore = result[1]
-        if positionNumber == -1 :
-            print('No match found!')
-            lcdcmd(1)
-            lcdprint("No Match Found")
-            time.sleep(2)
-            return
-        else:
-            print('Found template at position #' + str(positionNumber))
-            lcdcmd(1)
-            lcdprint("Found at Pos:")
-            lcdprint(str(positionNumber))
-            time.sleep(2)
+def searchFinger(fa):
+	try:
+		if fa == 0:
+			print('Waiting for finger...')
+		else:
+			print('Admin fingerprint')
+		while( f.readImage() == False ):
+			#pass
+			time.sleep(.5)
+			return
+		f.convertImage(0x01)
+		result = f.searchTemplate()
+		positionNumber = result[0]
+		accuracyScore = result[1]
+		if positionNumber == -1 :
+			print('No match found!')
+			lcdcmd(1)
+			lcdprint("No Match Found")
+			time.sleep(2)
+			if fa == 0:
+				return
+			else:
+				return False
+		else:
+			print('Found template at position #' + str(positionNumber))
+			lcdcmd(1)
+			lcdprint("Found at Pos:")
+			lcdprint(str(positionNumber))
+			time.sleep(2)
+			resultAdmin = firebase.get('/fingerprint', positionNumber)
+			print resultAdmin
+			if fa == 1 & resultAdmin == True:
+				print("sal")
+				flagAdminRights=0
+				return True
+			else:
+				flagAdminRights=0
+				return False
 
-    except Exception as e:
-        print('Operation failed!')
-        print('Exception message: ' + str(e))
-        exit(1)
+	except Exception as e:
+		print('Operation failed!')
+		print('Exception message: ' + str(e))
+		exit(1)
 
 
 
-    
+	
 def deleteFinger():
-    positionNumber = 0
-    count=0
-    lcdcmd(1)
-    lcdprint("Delete Finger")
-    lcdcmd(192)
-    lcdprint("Position: ")
-    lcdcmd(0xca)
-    lcdprint(str(count))
-    while gpio.input(enrol) == False:   # here enrol key means ok
-        if gpio.input(inc) == True:
-            count=count+1
-            if count>1000:
-                count=1000
-            lcdcmd(0xca)
-            lcdprint(str(count))
-            time.sleep(0.2)
-        elif gpio.input(dec) == True:
-            count=count-1
-            if count<0:
-                count=0
-            lcdcmd(0xca)
-            lcdprint(str(count))
-            time.sleep(0.2)
-    positionNumber=count
-    if f.deleteTemplate(positionNumber) == True :
-        print('Template deleted!')
-        lcdcmd(1)
-        lcdprint("Finger Deleted");
-        time.sleep(2)
+	positionNumber = 0
+	count=0
+	flagAdminRights=1
+	lcdcmd(0x01)
+	lcdprint("Admin finger")
+	while flagAdminRights == 1:
+		valAdmin=searchFinger(flagAdminRights)
+		if valAdmin == True:
+			flagAdminRights = 0
+	if valAdmin == True:
+		lcdcmd(1)
+		lcdprint("Delete Finger")
+		lcdcmd(192)
+		lcdprint("Position: ")
+		lcdcmd(0xca)
+		lcdprint(str(count))
+		while gpio.input(enrol) == False:   # here enrol key means ok
+			if gpio.input(inc) == True:
+				count=count+1
+				if count>1000:
+					count=1000
+				lcdcmd(0xca)
+				lcdprint(str(count))
+				time.sleep(0.2)
+			elif gpio.input(dec) == True:
+				count=count-1
+				if count<0:
+					count=0
+				lcdcmd(0xca)
+				lcdprint(str(count))
+				time.sleep(0.2)
+		positionNumber=count
+		if f.deleteTemplate(positionNumber) == True :
+			print('Template deleted!')
+			lcdcmd(1)
+			firebase.delete('/fingerprint',positionNumber);
+			lcdprint("Finger Deleted");
+			time.sleep(2)
 
 begin()
 lcdcmd(0x01)
@@ -266,19 +301,17 @@ lcdclear()
 
 
 while 1:
-    gpio.output(led, HIGH)
-    print gpio.input(5)
-    lcdcmd(1)
-    lcdprint("Place Finger")
-    if gpio.input(enrol) == 1:
-    	print("salll")
-        gpio.output(led, LOW)
-        enrollFinger()
-    elif gpio.input(delet) == 1:
-    	print("fdsfdsfdsfds")
-        gpio.output(led, LOW)
-        while gpio.input(delet) == 1:
-            time.sleep(0.1)
-        deleteFinger()
-    else:
-        searchFinger()
+	gpio.output(led, HIGH)
+	lcdcmd(1)
+	lcdprint("Place Finger")
+	if gpio.input(enrol) == 1:
+		gpio.output(led, LOW)
+		enrollFinger()
+	elif gpio.input(delet) == 1:
+		print ("sall")
+		gpio.output(led, LOW)
+		while gpio.input(delet) == 1:
+			time.sleep(0.1)
+		deleteFinger()
+	else:
+		searchFinger(flagAdminRights)
